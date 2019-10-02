@@ -16,9 +16,18 @@ object IssueRunner extends AutoPlugin {
   }
 
   def issue = Command.args("issue", "<dirName>") { case (state, dirName :: Nil) =>
+    @annotation.tailrec def locateLaunchFile(dirRaw: String): String = {
+      val dir = dirRaw.reverse.dropWhile(_ == '/').reverse
+      val launchFile = s"$dir/launch.iss"
+      println(s"Attempting to load $launchFile")
+      if (file(launchFile).exists) launchFile
+      else if (augmentString(dir).filter(_ != '/').isEmpty) throw new RuntimeException("Can't locate the launch file")
+      else locateLaunchFile(dir.reverse.dropWhile(_ != '/').reverse)
+    }
+
     val issuesWorkspace = state.attributes(issuesWorkspaceAttr)
     val issueDir  = s"$issuesWorkspace/$dirName"
-    val launchSrc = s"$issueDir/launch.iss"
+    val launchSrc = locateLaunchFile(issueDir)
 
     val compileLaunchCmd = List(
       "awk",
