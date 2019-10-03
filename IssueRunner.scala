@@ -41,7 +41,7 @@ object IssueRunner extends AutoPlugin {
         else commented
       }
       .filter(line => !line.isEmpty && !line.forall(_.isWhitespace))
-      .mkString(" ")
+      .mkString
       .replace("$here", issueDir.getPath)
 
     println(s"Executing command:\n$launchCmd")
