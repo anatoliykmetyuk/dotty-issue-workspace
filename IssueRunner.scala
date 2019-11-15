@@ -27,6 +27,7 @@ object IssueRunner extends AutoPlugin with IssueRunnerImpl {
 
     val phases = List(
       scriptToSbtCommand,
+      normalizeClasspath,
       predefinedVars,
       scriptVars,
     )
@@ -54,6 +55,11 @@ trait IssueRunnerImpl { this: IssueRunner.type =>
     println(s"Attempting to load $launchFile")
     if (launchFile.exists) launchFile
     else locateLaunchFile(dir.getParentFile)
+  }
+
+  val normalizeClasspath: Phase = (src, _) => {
+    val pat = """\s*:\s*""".r
+    pat.replaceAllIn(src, _ => ":")
   }
 
   val scriptToSbtCommand: Phase = (src, _) => src
