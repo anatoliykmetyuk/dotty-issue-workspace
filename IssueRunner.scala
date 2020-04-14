@@ -64,7 +64,7 @@ object IssueRunner extends AutoPlugin with IssueRunnerPhases {
 
           case ShellCommand(cmd) =>
             println(s"Executing shell command:\n$cmd")
-            exec(cmd)
+            exec(cmd, ctx.issueDir)
         }
 
       case x => throw new RuntimeException(
@@ -78,6 +78,11 @@ object IssueRunner extends AutoPlugin with IssueRunnerPhases {
       println(s"Attempting to load $launchFile")
       if (launchFile.exists) launchFile
       else locateLaunchFile(dir.getParentFile)
+    }
+
+    def exec(cmd: String, workdir: File) = {
+      println(s"$$ $cmd")
+      Process(cmd, workdir).!
     }
   }
 
