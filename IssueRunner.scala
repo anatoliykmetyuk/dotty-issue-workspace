@@ -19,15 +19,15 @@ sealed trait Statement extends Tree {
     case ValDef(name, oldVal) => ValDef(name, f(oldVal))
     case SbtCommand(oldVal) => SbtCommand(f(oldVal))
     case ShellCommand(oldVal) => ShellCommand(f(oldVal))
+    case ChangeWorkdirCommand(oldVal) => ShellCommand(f(oldVal))
   }
 }
 case class ValDef(name: String, value: String) extends Statement
 
-sealed trait Command extends Statement {
-  val cmd: String
-}
+sealed trait Command extends Statement
 case class SbtCommand(cmd: String) extends Command
 case class ShellCommand(cmd: String) extends Command
+case class ChangeWorkdirCommand(workdir: String) extends Command
 
 case class Context(args: List[String], issueDir: File)
 
@@ -59,6 +59,7 @@ object IssueRunner extends AutoPlugin with IssueRunnerPhases {
     val launchCmds: Tree = phases.foldLeft(src) {
       (src, phase) => phase(src, ctx) }
 
+    var currentWorkdir = ctx.issueDir
     launchCmds match {
       case Statements(cmds) =>
         var state = initialState
@@ -68,8 +69,11 @@ object IssueRunner extends AutoPlugin with IssueRunnerPhases {
             state = SBTCommandAPI.process(cmd, initialState)
 
           case ShellCommand(cmd) =>
-            println(s"Executing shell command:\n$cmd")
-            exec(cmd, ctx.issueDir)
+            println(s"Executing shell command at $currentWorkdir:\n$cmd")
+            exec(cmd, currentWorkdir)
+
+          case ChangeWorkdirCommand(wd) =>
+            currentWorkdir = new File(wd)
         }
         state
 
@@ -129,11 +133,23 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
     def appendToCurrentStatement(line: String): Unit = {
       val pat = """\s+(.+)""".r
       line match {
-        case pat(str) => currentStat = currentStat.map(_ + " " + str)
+        case pat(str) =>
+          val useWhitespaceSeparator =
+            !currentStat.isInstanceOf[ChangeWorkdirCommand]
+          val sep = if (useWhitespaceSeparator) " " else ""
+
+          currentStat = currentStat.map(_ + sep + str)
       }
     }
 
     def makeSbtCommand(line: String): SbtCommand = SbtCommand(line)
+
+    def makeCd(line: String): ChangeWorkdirCommand = {
+      val pat = """cd\s+(.+)""".r
+      line match {
+        case pat(str) => ChangeWorkdirCommand(str)
+      }
+    }
 
     for {
       rawLine <- lines
@@ -146,6 +162,7 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
         currentStat =
           if (line.startsWith("val")) makeVal(line)
           else if (line.startsWith("$")) makeShellScript(line)
+          else if (line.startsWith("cd")) makeCd(line)
           else makeSbtCommand(line)
       }
     }
