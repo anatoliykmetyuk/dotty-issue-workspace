@@ -96,7 +96,7 @@ object IssueRunner extends AutoPlugin with IssueRunnerPhases {
   }
 
   private final def exec(cmd: String, workdir: File) =
-    Process(cmd.dropWhile(_.isWhitespace), workdir).!
+    Process(List("sh", "-c", cmd), workdir).!
 
   override lazy val projectSettings = Seq(commands ++= Seq(issue, issuesWorkspace))
 }
