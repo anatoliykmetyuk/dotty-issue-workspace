@@ -10,18 +10,22 @@ import scala.io.Source
 
 sealed trait Tree
 case class RawScript(src: String) extends Tree
+case class Statements(stats: List[Statement]) extends Tree
 
-sealed trait Statement extends Tree
+sealed trait Statement extends Tree {
+  def updated(newVal: String): Statement = map(_ => newVal)
+
+  def map(f: String => String): Statement = this match {
+    case ValDef(name, oldVal) => ValDef(name, f(oldVal))
+    case SbtCommand(oldVal) => SbtCommand(f(oldVal))
+    case ShellCommand(oldVal) => ShellCommand(f(oldVal))
+  }
+}
 case class ValDef(name: String, value: String) extends Statement
 
 sealed trait Command extends Statement {
   val cmd: String
-  def updated(newCmd: String): this.type = this match {
-    case SbtCommand(_) => SbtCommand(newCmd)
-    case ShellCommand(_) => ShellCommand(newCmd)
-  }
 }
-
 case class SbtCommand(cmd: String) extends Command
 case class ShellCommand(cmd: String) extends Command
 
@@ -33,14 +37,14 @@ object IssueRunner extends AutoPlugin with IssueRunnerPhases {
 
   val issuesWorkspaceAttr = AttributeKey[File]("issueWorkspace")
 
-  def issuesWorkspace = Command.args("issuesWorkspace", "<workdir>") { case (state, dirName :: Nil) =>
+  def issuesWorkspace = SBTCommandAPI.args("issuesWorkspace", "<workdir>") { case (state, dirName :: Nil) =>
     val newState = state.copy(attributes = state.attributes.put(issuesWorkspaceAttr, new File(dirName)))
     println(s"Issues Workspace is set to ${newState.attributes(issuesWorkspaceAttr)}")
     newState
   }
 
-  def issue = Command.args("issue", "<dirName>, <args>") { case (state, dirName :: args) =>
-    val issuesWorkspace = state.attributes(issuesWorkspaceAttr)
+  def issue = SBTCommandAPI.args("issue", "<dirName>, <args>") { case (initialState, dirName :: args) =>
+    val issuesWorkspace = initialState.attributes(issuesWorkspaceAttr)
     val issueDir  = new File(issuesWorkspace, dirName)
     val launchSrc = locateLaunchFile(issueDir)
 
@@ -52,38 +56,41 @@ object IssueRunner extends AutoPlugin with IssueRunnerPhases {
 
     val ctx = Context(args, issueDir)
     val src: Tree = RawScript(Source.fromFile(launchSrc).mkString)
-    val launchCmds): Tree = phases.foldLeft(src) {
+    val launchCmds: Tree = phases.foldLeft(src) {
       (src, phase) => phase(src, ctx) }
 
     launchCmds match {
-      case Commands(cmds) =>
+      case Statements(cmds) =>
+        var state = initialState
         for (cmd <- cmds) cmd match {
           case SbtCommand(cmd) =>
             println(s"Executing SBT command:\n$cmd")
-            Command.process(launchCmd, state)
+            state = SBTCommandAPI.process(cmd, initialState)
 
           case ShellCommand(cmd) =>
             println(s"Executing shell command:\n$cmd")
             exec(cmd, ctx.issueDir)
         }
+        state
 
       case x => throw new RuntimeException(
         s"Expected a list of commands after issue script processing, got: $x")
     }
+  }
 
-    @annotation.tailrec private final def locateLaunchFile(dir: File): File = {
-      if (dir eq null) throw new RuntimeException("Can't locate the launch file")
+  @annotation.tailrec
+  private final def locateLaunchFile(dir: File): File = {
+    if (dir eq null) throw new RuntimeException("Can't locate the launch file")
 
-      val launchFile = new File(dir, "launch.iss")
-      println(s"Attempting to load $launchFile")
-      if (launchFile.exists) launchFile
-      else locateLaunchFile(dir.getParentFile)
-    }
+    val launchFile = new File(dir, "launch.iss")
+    println(s"Attempting to load $launchFile")
+    if (launchFile.exists) launchFile
+    else locateLaunchFile(dir.getParentFile)
+  }
 
-    def exec(cmd: String, workdir: File) = {
-      println(s"$$ $cmd")
-      Process(cmd, workdir).!
-    }
+  private final def exec(cmd: String, workdir: File) = {
+    println(s"$$ $cmd")
+    Process(cmd, workdir).!
   }
 
   override lazy val projectSettings = Seq(commands ++= Seq(issue, issuesWorkspace))
@@ -96,19 +103,19 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
 
   val makeStatements: Phase = { case (RawScript(src), _) =>
     val lines = src.split("\n")
-    val stats = ListBuffer.empty[Statement]
+    val stats = collection.mutable.ListBuffer.empty[Statement]
     var currentStat: Statement = null
 
     def removeComments(line: String): String =
       line.takeWhile(_ != '#')
 
-    def finalizeMultilineStatement(line: String): Unit = {
+    def finalizeMultilineStatement(): Unit = {
       stats += currentStat
       currentStat = null
     }
 
     def makeVal(line: String): ValDef = {
-      val pat = s"""val\s+($namePat)\s+=\s+(.+)""".r
+      val pat = s"""val\s+($valNamePat)\s*=\s*(.*)""".r
       line match {
         case pat(name, value) => ValDef(name, value)
       }
@@ -124,16 +131,16 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
     def appendToCurrentStatement(line: String): Unit = {
       val pat = """\s+(.+)""".r
       line match {
-        case pat(str) => currentStat = currentStat.append(line)
+        case pat(str) => currentStat = currentStat.map(_ + line)
       }
     }
 
     def makeSbtCommand(line: String): SbtCommand = SbtCommand(line)
 
     for {
-      lineRaw <- lines
+      rawLine <- lines
       line = removeComments(rawLine)
-      if line.nonEmpty && !line.forAll(_.isWhitespace)
+      if line.nonEmpty && !line.forall(_.isWhitespace)
     } {
       if (line.startsWith(" ")) appendToCurrentStatement(line)
       else {
@@ -150,7 +157,7 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
   }
 
   val substituteVars: Phase = { case (Statements(stats), ctx) =>
-    val variables = mutable.Map[String, String]("here" -> ctx.issueDir.getPath)
+    val variables = collection.mutable.Map[String, String]("here" -> ctx.issueDir.getPath)
     for { (arg, id) <- ctx.args.zipWithIndex }
       variables.updated((id + 1).toString, arg)
 
@@ -161,8 +168,8 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
           Nil
 
         case stat: Command =>
-          val valReferencePat = Regex("\\$(" + valNamePat + ")")
-          stat.updated {
+          val valReferencePat = ("\\$(" + valNamePat + ")").r
+          stat.map { cmd =>
             valReferencePat.replaceAllIn(cmd,
               m => variables(m.group(1)))
           } :: Nil
@@ -171,7 +178,7 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
     Statements(newStats)
   }
 
-  val normalizeClasspath: Phase { case (Statements(stats), _) =>
+  val normalizeSbtClasspath: Phase = { case (Statements(stats), _) =>
     val newStats =
       stats.map {
         case SbtCommand(cmd) =>
@@ -181,8 +188,4 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
       }
     Statements(newStats)
   }
-}
-
-trait IssueRunnerImpl extends Phases { this: IssueRunner.type =>
-
 }
