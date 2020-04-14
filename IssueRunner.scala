@@ -32,9 +32,9 @@ object IssueRunner extends AutoPlugin with IssueRunnerImpl {
     val launchSrc = locateLaunchFile(issueDir)
 
     val phases = List(
-      makeStatements,     // Transform a script string into a sequence of statements
-      substituteVars,     // Traverse statements, for each, substitute $var with the value of that variable
-      normalizeClasspath, // For each generated SBT command, remove whitespaces around classpath delimiters
+      makeStatements,        // Transform a script string into a sequence of statements
+      substituteVars,        // Traverse statements, for each, substitute $var with the value of that variable
+      normalizeSbtClasspath, // For each generated SBT command, remove whitespaces around classpath delimiters
     )
 
     val ctx = Context(args, issueDir)
@@ -144,9 +144,15 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
     Statements(newStats)
   }
 
-  val normalizeClasspath: Phase = (src, _) => {
-    val pat = """\s*:\s*""".r
-    pat.replaceAllIn(src, _ => ":")
+  val normalizeClasspath: Phase { case (Statements(stats), _) =>
+    val newStats =
+      stats.map {
+        case SbtCommand(cmd) =>
+          val pat = """\s*:\s*""".r
+          SbtCommand(pat.replaceAllIn(cmd, _ => ":"))
+        case x => x
+      }
+    Statements(newStats)
   }
 }
 
