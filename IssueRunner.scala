@@ -1,4 +1,4 @@
-import sbt._, sbt.internal.util.AttributeMap
+import sbt.{ Command => SBTCommandAPI, _ }, sbt.internal.util.AttributeMap
 import Keys._
 import complete.DefaultParsers._
 
@@ -7,6 +7,12 @@ import java.io.File
 import scala.sys.process._
 import scala.io.Source
 
+
+sealed trait Command
+case class SbtCommand(cmd: String) extends Command
+case class ShellCommand(cmd: String) extends Command
+
+case class Context(args: List[String], issueDir: File)
 
 object IssueRunner extends AutoPlugin with IssueRunnerImpl {
   override def requires = sbt.plugins.JvmPlugin
@@ -26,35 +32,92 @@ object IssueRunner extends AutoPlugin with IssueRunnerImpl {
     val launchSrc = locateLaunchFile(issueDir)
 
     val phases = List(
-      scriptToSbtCommand,
-      normalizeClasspath,
-      predefinedVars,
-      scriptVars,
+      makeStatements,     // Transform a script string into a sequence of statements
+      substituteVars,     // Traverse statements, for each, substitute $var with the value of that variable
+      makeCommands,       // Generate a Commands tree node with the list of commands for SBT and Shell
+      normalizeClasspath, // For each generated SBT command, remove whitespaces around classpath delimiters
     )
 
     val ctx = Context(args, issueDir)
-    val launchCmd = phases.foldLeft(Source.fromFile(launchSrc).mkString) { (src, phase) => phase(src, ctx) }
+    val src: Tree = RawScript(Source.fromFile(launchSrc).mkString)
+    val launchCmds): Tree = phases.foldLeft(src) {
+      (src, phase) => phase(src, ctx) }
 
-    println(s"Executing command:\n$launchCmd")
-    Command.process(launchCmd, state)
+    launchCmds match {
+      case Commands(cmds) =>
+        for (cmd <- cmds) cmd match {
+          case SbtCommand(cmd) =>
+            println(s"Executing SBT command:\n$cmd")
+            Command.process(launchCmd, state)
+
+          case ShellCommand(cmd) =>
+            println(s"Executing shell command:\n$cmd")
+            exec(cmd)
+        }
+
+      case x => throw new RuntimeException(
+        s"Expected a list of commands after issue script processing, got: $x")
+    }
+
+
   }
 
   override lazy val projectSettings = Seq(commands ++= Seq(issue, issuesWorkspace))
 }
 
+trait IssueRunnerPhases { this: IssueRunner.type =>
 
-trait IssueRunnerImpl { this: IssueRunner.type =>
-  type Phase = (String, Context) => String
+  val makeStatements: Phase = { case (RawScript(src), _) =>
+    val lines = src.split("\n")
+    val stats = ListBuffer.empty[Statement]
+    var currentStat: Statement = null
 
-  case class Context(args: List[String], issueDir: File)
+    def removeComments(line: String): String =
+      line.takeWhile(_ != '#')
 
-  @annotation.tailrec final def locateLaunchFile(dir: File): File = {
-    if (dir eq null) throw new RuntimeException("Can't locate the launch file")
+    def finalizeMultilineStatement(line: String): Unit = {
+      stats += currentStat
+      currentStat = null
+    }
 
-    val launchFile = new File(dir, "launch.iss")
-    println(s"Attempting to load $launchFile")
-    if (launchFile.exists) launchFile
-    else locateLaunchFile(dir.getParentFile)
+    def makeVal(line: String): ValDef = {
+      val namePat = """[\w\-_\d]+"""
+      val pat = s"""val\s+($namePat)\s+=\s+(.+)""".r
+      line match {
+        case pat(name, value) => ValDef(name, value)
+      }
+    }
+
+    def makeShellScript(line: String): ShellCommand = {
+      val pat = """\$ (.+)""".r
+      line match {
+        case pat(cmd) => ShellCommand(cmd)
+      }
+    }
+
+    def appendToCurrentStatement(line: String): Unit = {
+      val pat = """\s+(.+)""".r
+      line match {
+        case pat(str) => currentStat = currentStat.append(line)
+      }
+    }
+
+    def makeSbtCommand(line: String): SbtCommand = SbtCommand(line)
+
+    for (lineRaw <- lines) {
+      val line = removeComments(rawLine)
+
+      if (line.startsWith(" ")) appendToCurrentStatement(line)
+      else {
+        if (currentStat != null) finalizeMultilineStatement()
+        currentStat =
+          if (line.startsWith("val")) makeVal(line)
+          else if (line.startsWith("$")) makeShellScript(line)
+          else makeSbtCommand(line)
+      }
+    }
+
+    if (currentStat != null) finalizeMultilineStatement()
   }
 
   val normalizeClasspath: Phase = (src, _) => {
@@ -77,5 +140,18 @@ trait IssueRunnerImpl { this: IssueRunner.type =>
   val scriptVars: Phase = (src, ctx) => {
     val pat = """\$(?<argid>\d+)""".r
     pat.replaceAllIn(src, m => ctx.args(m.group("argid").toInt - 1))
+  }
+}
+
+trait IssueRunnerImpl extends Phases { this: IssueRunner.type =>
+  type Phase = (Tree, Context) => Tree
+
+  @annotation.tailrec final def locateLaunchFile(dir: File): File = {
+    if (dir eq null) throw new RuntimeException("Can't locate the launch file")
+
+    val launchFile = new File(dir, "launch.iss")
+    println(s"Attempting to load $launchFile")
+    if (launchFile.exists) launchFile
+    else locateLaunchFile(dir.getParentFile)
   }
 }
