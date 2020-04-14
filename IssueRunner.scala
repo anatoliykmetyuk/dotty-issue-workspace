@@ -27,7 +27,7 @@ case class ShellCommand(cmd: String) extends Command
 
 case class Context(args: List[String], issueDir: File)
 
-object IssueRunner extends AutoPlugin with IssueRunnerImpl {
+object IssueRunner extends AutoPlugin with IssueRunnerPhases {
   override def requires = sbt.plugins.JvmPlugin
   override def trigger = allRequirements
 
@@ -71,13 +71,22 @@ object IssueRunner extends AutoPlugin with IssueRunnerImpl {
         s"Expected a list of commands after issue script processing, got: $x")
     }
 
+    @annotation.tailrec private final def locateLaunchFile(dir: File): File = {
+      if (dir eq null) throw new RuntimeException("Can't locate the launch file")
 
+      val launchFile = new File(dir, "launch.iss")
+      println(s"Attempting to load $launchFile")
+      if (launchFile.exists) launchFile
+      else locateLaunchFile(dir.getParentFile)
+    }
   }
 
   override lazy val projectSettings = Seq(commands ++= Seq(issue, issuesWorkspace))
 }
 
 trait IssueRunnerPhases { this: IssueRunner.type =>
+  type Phase = (Tree, Context) => Tree
+
   val valNamePat = """[\w\-_\d]+"""
 
   val makeStatements: Phase = { case (RawScript(src), _) =>
@@ -170,14 +179,5 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
 }
 
 trait IssueRunnerImpl extends Phases { this: IssueRunner.type =>
-  type Phase = (Tree, Context) => Tree
 
-  @annotation.tailrec final def locateLaunchFile(dir: File): File = {
-    if (dir eq null) throw new RuntimeException("Can't locate the launch file")
-
-    val launchFile = new File(dir, "launch.iss")
-    println(s"Attempting to load $launchFile")
-    if (launchFile.exists) launchFile
-    else locateLaunchFile(dir.getParentFile)
-  }
 }
