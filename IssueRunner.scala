@@ -64,11 +64,14 @@ object IssueRunner extends AutoPlugin with IssueRunnerPhases {
       case Statements(cmds) =>
         debug(s"Launch script:\n${cmds.mkString("\n")}")
 
-        var state = initialState
+        val failureMarker = Exec("FAILURE MARKER", None)
+        var state = initialState.copy(onFailure = Some(failureMarker))
         for (cmd <- cmds) cmd match {
           case SbtCommand(cmd) =>
             debug(s"Executing SBT command:\n$cmd")
-            state = SBTCommandAPI.process(cmd, initialState)
+            state = SBTCommandAPI.process(cmd, state)
+            if (state.remainingCommands.contains(failureMarker))
+              throw new RuntimeException(s"$cmd failed, see above for the detailed output")
 
           case ShellCommand(cmd) =>
             debug(s"Executing shell command at $currentWorkdir:\n$cmd")
