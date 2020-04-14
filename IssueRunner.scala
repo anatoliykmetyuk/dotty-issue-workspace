@@ -19,7 +19,7 @@ sealed trait Statement extends Tree {
     case ValDef(name, oldVal) => ValDef(name, f(oldVal))
     case SbtCommand(oldVal) => SbtCommand(f(oldVal))
     case ShellCommand(oldVal) => ShellCommand(f(oldVal))
-    case ChangeWorkdirCommand(oldVal) => ShellCommand(f(oldVal))
+    case ChangeWorkdirCommand(oldVal) => ChangeWorkdirCommand(f(oldVal))
   }
 }
 case class ValDef(name: String, value: String) extends Statement
