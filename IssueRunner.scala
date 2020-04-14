@@ -131,7 +131,7 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
     def appendToCurrentStatement(line: String): Unit = {
       val pat = """\s+(.+)""".r
       line match {
-        case pat(str) => currentStat = currentStat.map(_ + line)
+        case pat(str) => currentStat = currentStat.map(_ + " " + str)
       }
     }
 
