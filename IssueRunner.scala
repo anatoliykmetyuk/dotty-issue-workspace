@@ -66,6 +66,7 @@ object IssueRunner extends AutoPlugin with IssueRunnerImpl {
 }
 
 trait IssueRunnerPhases { this: IssueRunner.type =>
+  val valNamePat = """[\w\-_\d]+"""
 
   val makeStatements: Phase = { case (RawScript(src), _) =>
     val lines = src.split("\n")
@@ -81,7 +82,6 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
     }
 
     def makeVal(line: String): ValDef = {
-      val namePat = """[\w\-_\d]+"""
       val pat = s"""val\s+($namePat)\s+=\s+(.+)""".r
       line match {
         case pat(name, value) => ValDef(name, value)
@@ -123,16 +123,25 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
     Statements(stats.toList)
   }
 
+  val substituteVars: Phase = { case (Statements(stats), ctx) =>
+    val variables = mutable.Map[String, String]("here" -> ctx.issueDir.getPath)
+    for { (arg, id) <- ctx.args.zipWithIndex }
+      variables.updated((id + 1).toString, arg)
+
+    stats.map {
+      case ValDef(name, value) => variables.update(name, value)
+      case stat: Command =>
+        val valReferencePat = Regex("\\$(" + valNamePat + ")")
+        stat.updated {
+          valReferencePat.replaceAllIn(cmd,
+            m => variables(m.group(1)))
+        }
+    }
+  }
+
   val normalizeClasspath: Phase = (src, _) => {
     val pat = """\s*:\s*""".r
     pat.replaceAllIn(src, _ => ":")
-  }
-
-  val predefinedVars: Phase = (src, ctx) => src.replace("$here", ctx.issueDir.getPath)
-
-  val scriptVars: Phase = (src, ctx) => {
-    val pat = """\$(?<argid>\d+)""".r
-    pat.replaceAllIn(src, m => ctx.args(m.group("argid").toInt - 1))
   }
 }
 
