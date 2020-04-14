@@ -181,18 +181,20 @@ trait IssueRunnerPhases extends IssueRunnerLogging { this: IssueRunner.type =>
     for { (arg, id) <- ctx.args.zipWithIndex }
       variables.updated((id + 1).toString, arg)
 
+    def substituteVars(str: String): String = {
+      val valReferencePat = ("\\$(" + valNamePat + ")").r
+      valReferencePat.replaceAllIn(str,
+        m => variables(m.group(1)))
+    }
+
     val newStats =
       stats.flatMap {
         case ValDef(name, value) =>
-          variables.update(name, value)
+          variables.update(name, substituteVars(value))
           Nil
 
         case stat: Command =>
-          val valReferencePat = ("\\$(" + valNamePat + ")").r
-          stat.map { cmd =>
-            valReferencePat.replaceAllIn(cmd,
-              m => variables(m.group(1)))
-          } :: Nil
+          stat.map(substituteVars) :: Nil
       }
 
     Statements(newStats)
