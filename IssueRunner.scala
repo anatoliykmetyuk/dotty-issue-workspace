@@ -88,10 +88,8 @@ object IssueRunner extends AutoPlugin with IssueRunnerPhases {
     else locateLaunchFile(dir.getParentFile)
   }
 
-  private final def exec(cmd: String, workdir: File) = {
-    println(s"$$ $cmd")
-    Process(cmd, workdir).!
-  }
+  private final def exec(cmd: String, workdir: File) =
+    Process(cmd.dropWhile(_.isWhitespace), workdir).!
 
   override lazy val projectSettings = Seq(commands ++= Seq(issue, issuesWorkspace))
 }
@@ -115,7 +113,7 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
     }
 
     def makeVal(line: String): ValDef = {
-      val pat = s"""val\s+($valNamePat)\s*=\s*(.*)""".r
+      val pat = s"val\\s+($valNamePat)\\s*=\\s*(.*)".r
       line match {
         case pat(name, value) => ValDef(name, value)
       }
