@@ -8,7 +8,20 @@ import scala.sys.process._
 import scala.io.Source
 
 
-sealed trait Command
+sealed trait Tree
+case class RawScript(src: String) extends Tree
+
+sealed trait Statement extends Tree
+case class ValDef(name: String, value: String) extends Statement
+
+sealed trait Command extends Statement {
+  val cmd: String
+  def updated(newCmd: String): this.type = this match {
+    case SbtCommand(_) => SbtCommand(newCmd)
+    case ShellCommand(_) => ShellCommand(newCmd)
+  }
+}
+
 case class SbtCommand(cmd: String) extends Command
 case class ShellCommand(cmd: String) extends Command
 
