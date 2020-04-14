@@ -104,9 +104,11 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
 
     def makeSbtCommand(line: String): SbtCommand = SbtCommand(line)
 
-    for (lineRaw <- lines) {
-      val line = removeComments(rawLine)
-
+    for {
+      lineRaw <- lines
+      line = removeComments(rawLine)
+      if line.nonEmpty && !line.forAll(_.isWhitespace)
+    } {
       if (line.startsWith(" ")) appendToCurrentStatement(line)
       else {
         if (currentStat != null) finalizeMultilineStatement()
@@ -118,22 +120,13 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
     }
 
     if (currentStat != null) finalizeMultilineStatement()
+    Statements(stats.toList)
   }
 
   val normalizeClasspath: Phase = (src, _) => {
     val pat = """\s*:\s*""".r
     pat.replaceAllIn(src, _ => ":")
   }
-
-  val scriptToSbtCommand: Phase = (src, _) => src
-    .split("\n")
-    .map { line =>
-      val commented = line.takeWhile(_ != '#')
-      if (commented.headOption.filter(c => !c.isWhitespace).isDefined) s";$commented"
-      else commented
-    }
-    .filter(line => !line.isEmpty && !line.forall(_.isWhitespace))
-    .mkString
 
   val predefinedVars: Phase = (src, ctx) => src.replace("$here", ctx.issueDir.getPath)
 
