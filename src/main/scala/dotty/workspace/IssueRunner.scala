@@ -1,3 +1,5 @@
+package dotty.workspace
+
 import sbt.{ Command => SBTCommandAPI, _ }, sbt.internal.util.AttributeMap
 import Keys._
 import complete.DefaultParsers._
