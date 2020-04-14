@@ -62,17 +62,20 @@ object IssueRunner extends AutoPlugin with IssueRunnerPhases {
     var currentWorkdir = ctx.issueDir
     launchCmds match {
       case Statements(cmds) =>
+        debug(s"Launch script:\n${cmds.mkString("\n")}")
+
         var state = initialState
         for (cmd <- cmds) cmd match {
           case SbtCommand(cmd) =>
-            println(s"Executing SBT command:\n$cmd")
+            debug(s"Executing SBT command:\n$cmd")
             state = SBTCommandAPI.process(cmd, initialState)
 
           case ShellCommand(cmd) =>
-            println(s"Executing shell command at $currentWorkdir:\n$cmd")
+            debug(s"Executing shell command at $currentWorkdir:\n$cmd")
             exec(cmd, currentWorkdir)
 
           case ChangeWorkdirCommand(wd) =>
+            debug(s"Changing workdir from $currentWorkdir to $wd")
             currentWorkdir = new File(wd)
         }
         state
@@ -98,7 +101,7 @@ object IssueRunner extends AutoPlugin with IssueRunnerPhases {
   override lazy val projectSettings = Seq(commands ++= Seq(issue, issuesWorkspace))
 }
 
-trait IssueRunnerPhases { this: IssueRunner.type =>
+trait IssueRunnerPhases extends IssueRunnerLogging { this: IssueRunner.type =>
   type Phase = (Tree, Context) => Tree
 
   val valNamePat = """[\w\-_\d]+"""
@@ -116,14 +119,14 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
       currentStat = null
     }
 
-    def makeVal(line: String): ValDef = {
+    def makeVal(line: String): ValDef = trace("makeVal") {
       val pat = s"val\\s+($valNamePat)\\s*=\\s*(.*)".r
       line match {
         case pat(name, value) => ValDef(name, value)
       }
     }
 
-    def makeShellScript(line: String): ShellCommand = {
+    def makeShellScript(line: String): ShellCommand = trace("makeShellScript") {
       val pat = """\$ (.+)""".r
       line match {
         case pat(cmd) => ShellCommand(cmd)
@@ -138,13 +141,15 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
             !currentStat.isInstanceOf[ChangeWorkdirCommand]
           val sep = if (useWhitespaceSeparator) " " else ""
 
-          currentStat = currentStat.map(_ + sep + str)
+          currentStat =  trace("appendToCurrentStatement") {
+            currentStat.map(_ + sep + str)
+          }
       }
     }
 
-    def makeSbtCommand(line: String): SbtCommand = SbtCommand(line)
+    def makeSbtCommand(line: String): SbtCommand = trace("makeSbtCommand") { SbtCommand(line) }
 
-    def makeCd(line: String): ChangeWorkdirCommand = {
+    def makeCd(line: String): ChangeWorkdirCommand = trace("makeCd") {
       val pat = """cd\s+(.+)""".r
       line match {
         case pat(str) => ChangeWorkdirCommand(str)
@@ -203,4 +208,16 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
       }
     Statements(newStats)
   }
+}
+
+trait IssueRunnerLogging {
+  val doDebug = true
+
+  def trace[T](name: String)(task: => T): T = if (doDebug) {
+    val res = task
+    println(s"TRACE $name = $res")
+    res
+  } else task
+
+  def debug(str: String) = if (doDebug) println(str)
 }
