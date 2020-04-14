@@ -72,7 +72,9 @@ object IssueRunner extends AutoPlugin with IssueRunnerPhases {
 
           case ShellCommand(cmd) =>
             debug(s"Executing shell command at $currentWorkdir:\n$cmd")
-            exec(cmd, currentWorkdir)
+            val exitCode = exec(cmd, currentWorkdir)
+            if (exitCode != 0)
+              throw new RuntimeException(s"$cmd exited with status code $exitCode")
 
           case ChangeWorkdirCommand(wd) =>
             debug(s"Changing workdir from $currentWorkdir to $wd")
