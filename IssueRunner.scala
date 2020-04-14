@@ -34,7 +34,6 @@ object IssueRunner extends AutoPlugin with IssueRunnerImpl {
     val phases = List(
       makeStatements,     // Transform a script string into a sequence of statements
       substituteVars,     // Traverse statements, for each, substitute $var with the value of that variable
-      makeCommands,       // Generate a Commands tree node with the list of commands for SBT and Shell
       normalizeClasspath, // For each generated SBT command, remove whitespaces around classpath delimiters
     )
 
@@ -128,15 +127,21 @@ trait IssueRunnerPhases { this: IssueRunner.type =>
     for { (arg, id) <- ctx.args.zipWithIndex }
       variables.updated((id + 1).toString, arg)
 
-    stats.map {
-      case ValDef(name, value) => variables.update(name, value)
-      case stat: Command =>
-        val valReferencePat = Regex("\\$(" + valNamePat + ")")
-        stat.updated {
-          valReferencePat.replaceAllIn(cmd,
-            m => variables(m.group(1)))
-        }
-    }
+    val newStats =
+      stats.flatMap {
+        case ValDef(name, value) =>
+          variables.update(name, value)
+          Nil
+
+        case stat: Command =>
+          val valReferencePat = Regex("\\$(" + valNamePat + ")")
+          stat.updated {
+            valReferencePat.replaceAllIn(cmd,
+              m => variables(m.group(1)))
+          } :: Nil
+      }
+
+    Statements(newStats)
   }
 
   val normalizeClasspath: Phase = (src, _) => {
