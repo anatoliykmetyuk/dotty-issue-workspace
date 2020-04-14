@@ -37,16 +37,8 @@ object IssueRunner extends AutoPlugin with IssueRunnerPhases {
   override def requires = sbt.plugins.JvmPlugin
   override def trigger = allRequirements
 
-  val issuesWorkspaceAttr = AttributeKey[File]("issueWorkspace")
-
-  def issuesWorkspace = SBTCommandAPI.args("issuesWorkspace", "<workdir>") { case (state, dirName :: Nil) =>
-    val newState = state.copy(attributes = state.attributes.put(issuesWorkspaceAttr, new File(dirName)))
-    println(s"Issues Workspace is set to ${newState.attributes(issuesWorkspaceAttr)}")
-    newState
-  }
-
   def issue = SBTCommandAPI.args("issue", "<dirName>, <args>") { case (initialState, dirName :: args) =>
-    val issuesWorkspace = initialState.attributes(issuesWorkspaceAttr)
+    val issuesWorkspace = new File(Source.fromFile(s"${sys.props("user.home")}/.sbt/1.0/plugins/dotty-workspace-path").mkString.replace("\n", ""))
     val issueDir  = new File(issuesWorkspace, dirName)
     val launchSrc = locateLaunchFile(issueDir)
 
@@ -105,7 +97,7 @@ object IssueRunner extends AutoPlugin with IssueRunnerPhases {
   private final def exec(cmd: String, workdir: File) =
     Process(List("sh", "-c", cmd), workdir).!
 
-  override lazy val projectSettings = Seq(commands ++= Seq(issue, issuesWorkspace))
+  override lazy val projectSettings = Seq(commands += issue)
 }
 
 trait IssueRunnerPhases extends IssueRunnerLogging { this: IssueRunner.type =>
