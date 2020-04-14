@@ -1,57 +1,89 @@
 # Dotty Issue Runner
-This is a tool to debug Dotty issues. It is an SBT plugin that allows you to write SBT commands in a text file like this:
+This is an SBT plugin to aid in reproducing Dotty issues locally. It allows you to write a script that describes what needs to be done to reproduce an issue. This script currently supports SBT commands, shell commands and variables.
+
+Say you have an issue that reproduces by compiling two files with Dotty. The second file needs the compiled first file on the classpath. You can write the following script that will be understood by the Dotty Issue Runner:
 
 ```scala
-dotty-bootstrapped/dotc
-  $here/Macros_1.scala
+dotty-bootstrapped/dotc -d $here
+  $here/A.scala
 
-dotty-bootstrapped/dotc
+dotty-bootstrapped/dotc -d $here
   -Xprint:staging,reifyQuotes
   -Xprint-inline
   -Ycheck:all
   -Yprint-pos
-  -classpath .
-  $here/Macros_2.scala
+  -classpath $here
+  $here/B.scala
 ```
 
-And have them executed in an SBT console in the rewritten, proper SBT form:
+You can save it in a file `launch.iss` and execute it from SBT console.
 
-```scala
-;dotty-bootstrapped/dotc  /Users/anatolii/Projects/dotty/pg/i7322/Macros_1.scala;dotty-bootstrapped/dotc  -Xprint:staging,reifyQuotes  -Xprint-inline  -Ycheck:all  -Yprint-pos  -classpath .  /Users/anatolii/Projects/dotty/pg/i7322/Macros_2.scala
-```
+The script above contains two SBT commands. Indented lines are joined with the lines without indentation using spaces, e.g. the first command becomes `dotty-bootstrapped/dotc -d $here $here/A.scala`. `$here` is a magic variable that points to the directory where the script resides.
 
 ## Usage
-It assumes you work on the issues under the following directory structure:
+The plugin assumes you store your issues under the following directory structure:
 
 ```
 workspace
 ├── i1
-│   ├── Macros_1.scala
-│   ├── Macros_2.scala
+│   ├── File_1.scala
+│   ├── File_2.scala
 │   └── launch.iss
-├── i2
-│   ├── Macros_1.scala
-│   ├── Macros_2.scala
+├── issue-30
+│   ├── A.scala
 │   └── launch.iss
-└── i7322
-    ├── Macros_1.scala
-    ├── Macros_2.scala
+└── stuff
+    ├── A.scala
+    ├── B.scala
+    ├── C.scala
     └── launch.iss
 ```
 
-So you have a dedicated workspace folder (`workspace`) and each issue has its own sub-folder inside that workspace (`i1`, `i2`, `i7322`). The issue folders contain the issue sources and the launch scripts (`launch.iss`).
+Each issue has a dedicated folder – `i1`, `issue-30`, `stuff` etc. All the issue files reside there. Each issue folder also contains the `launch.iss` script which describes how to reproduce the issue. All of the issue folders reside in one parent folder, the issue workspace folder.
 
-First, run `install.sh` to copy the `IssueRunner.scala` into your global SBT plugins directory.
-
-Next, run `sbt` console from the Dotty folder. Two new commands are available:
-
-- `issuesWorkspace /path/to/issue/workspace` – lets Dotty know where your issues are located
-- `issue i1` – reads the SBT commands from `/path/to/issue/workspace/i1/launch.iss`, translates them to a one-liner SBT command and executes it from SBT.
+### Getting started
+1. Clone this repo
+2. Run `./install.sh`, this will copy the plugin sources to the SBT global plugins directory
+3. Navigate to the Dotty repo and run `sbt` command
+4. From SBT console, run `issuesWorkspace /path/to/issue/workspace`. This lets Dotty know where your issues are located
+5. Run `issue issue_folder_name`. This reads the commands from `/path/to/issue/workspace/issue_folder_name/launch.iss` and executes them.
 
 ## Launch Script Syntax
-The launch script syntax is the same as the SBT commands one with the following considerations:
+The launch script syntax is as follows:
 
-- Newlines are removed from the file contents
-- If a line starts with a non-whitespace character, ";" will be added at the beginning of that line. Otherwise the line is unchanged. This allows to write command arguments on separate lines if they are indented.
-- `#` starts a comment.
-- `$here` string is replaced by the absolute path to the directory of the issue.
+- Every command is on a new line.
+- If a line is indented, it gets appended to the previous line without indentation.
+- `$ <cmd>` – executes a command using `bash`
+- `cd <dir>` – sets the working directory where `$` executes commands
+- `val <name> = <value>` – defines a variable. You can use variables in commands via `$name`.
+- `# Comment` – a comment
+- Everything else is interpreted as an SBT command.
+
+### Example
+Say I want to:
+
+1. Compile a 3rd party project (utest) with Dotty
+2. Compile a Scala file `test.scala` with utest on the classpath.
+
+I can make the following script:
+
+```
+# Publish Dotty to the local ivy repo
+dotty-bootstrapped/publishLocal
+
+# Define variables pointing where utest is
+val utest_dir = /Users/kmetiuk/Projects/scala3/tools/ecosystem/repos/utest/
+val utest_classpath =
+  $utest_dir/out/utest/jvm/0.24.0-bin-SNAPSHOT/compile/dest/classes
+
+# Compile utest using mill
+cd $utest_dir
+$ ./mill
+  -D dottyVersion="0.24.0-bin-SNAPSHOT"
+  utest.jvm[0.24.0-bin-SNAPSHOT].compile
+
+# Compile the example file
+dotty-bootstrapped/dotc -d $here
+  -classpath $utest_classpath
+  $here/test.scala
+```
