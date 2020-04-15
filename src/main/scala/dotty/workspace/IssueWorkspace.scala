@@ -10,7 +10,7 @@ import scala.io.Source
 import dotty.workspace.core._
 
 
-object IssueRunner extends AutoPlugin {
+object IssueWorkspace extends AutoPlugin {
   override def requires = sbt.plugins.JvmPlugin
   override def trigger = allRequirements
 
