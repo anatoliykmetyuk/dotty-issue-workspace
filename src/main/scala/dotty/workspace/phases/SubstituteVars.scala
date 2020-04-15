@@ -8,7 +8,7 @@ object SubstituteVars extends Phase {
   private def substituteInStats(stats: List[Statement])(implicit ctx: Context): Statements = {
     val variables = collection.mutable.Map[String, String]("here" -> ctx.issueDir.getPath)
     for { (arg, id) <- ctx.args.zipWithIndex }
-      variables.updated((id + 1).toString, arg)
+      variables.update((id + 1).toString, arg)
 
     def substituteVars(str: String): String = {
       val valReferencePat = ("\\$(" + valNamePat + ")").r

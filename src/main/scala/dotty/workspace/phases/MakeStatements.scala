@@ -64,9 +64,9 @@ object MakeStatements extends Phase {
       else {
         if (currentStat != null) finalizeMultilineStatement()
         currentStat =
-          if (line.startsWith("val")) makeVal(line)
-          else if (line.startsWith("$")) makeShellScript(line)
-          else if (line.startsWith("cd")) makeCd(line)
+          if (line.startsWith("val ")) makeVal(line)
+          else if (line.startsWith("$ ")) makeShellScript(line)
+          else if (line.startsWith("cd ")) makeCd(line)
           else makeSbtCommand(line)
       }
     }
