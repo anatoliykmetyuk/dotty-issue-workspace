@@ -14,19 +14,19 @@ object Interpreter {
     var state = initialState.copy(onFailure = Some(failureMarker))
     for (cmd <- cmds) cmd match {
       case SbtCommand(cmd) =>
-        debug(s"> $cmd")
+        info(s"> $cmd")
         state = SBTCommandAPI.process(cmd, state)
         if (state.remainingCommands.contains(failureMarker))
           fail(s"$cmd failed, see above for the detailed output")
 
       case ShellCommand(cmd) =>
-        debug(s"$currentWorkdir $$ $cmd")
+        info(s"$currentWorkdir $$ $cmd")
         val exitCode = exec(cmd, currentWorkdir)
         if (exitCode != 0)
           fail(s"$cmd exited with status code $exitCode")
 
       case ChangeWorkdirCommand(wd) =>
-        debug(s"cd $wd")
+        info(s"cd $wd")
         currentWorkdir = new File(wd)
     }
     state
