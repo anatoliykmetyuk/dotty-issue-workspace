@@ -17,13 +17,13 @@ object Interpreter {
         debug(s"> $cmd")
         state = SBTCommandAPI.process(cmd, state)
         if (state.remainingCommands.contains(failureMarker))
-          throw new RuntimeException(s"$cmd failed, see above for the detailed output")
+          fail(s"$cmd failed, see above for the detailed output")
 
       case ShellCommand(cmd) =>
         debug(s"$currentWorkdir $$ $cmd")
         val exitCode = exec(cmd, currentWorkdir)
         if (exitCode != 0)
-          throw new RuntimeException(s"$cmd exited with status code $exitCode")
+          fail(s"$cmd exited with status code $exitCode")
 
       case ChangeWorkdirCommand(wd) =>
         debug(s"cd $wd")

@@ -18,9 +18,8 @@ object Compiler {
     val launchCmds: Tree = phases.foldLeft(tree) {
       (t, phase) => phase(t) }
 
-    def failWithBadTree(x: Tree) =
-      throw new RuntimeException(
-          s"After compiling the issue script, got an uninterpretable instruction: $x")
+    def failWithBadTree(x: Tree) = fail(
+      s"After compiling the issue script, got an uninterpretable instruction: $x")
 
     launchCmds match {
       case Statements(stats) => stats.collect {

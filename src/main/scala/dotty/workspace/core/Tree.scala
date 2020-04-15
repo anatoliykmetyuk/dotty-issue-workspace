@@ -17,7 +17,14 @@ sealed trait Statement extends Tree {
 }
 case class ValDef(name: String, value: String) extends Statement
 
-sealed trait Command extends Statement
+sealed trait Command extends Statement {
+  override def toString = this match {
+    case SbtCommand(cmd) => s"> $cmd"
+    case ShellCommand(cmd) => s"$$ $cmd"
+    case ChangeWorkdirCommand(workdir) => s"cd $workdir"
+  }
+}
+
 case class SbtCommand(cmd: String) extends Command
 case class ShellCommand(cmd: String) extends Command
 case class ChangeWorkdirCommand(workdir: String) extends Command

@@ -10,13 +10,13 @@ trait Logging {
 
   def trace[T](name: String)(task: => T)(implicit logLevel: LogLevel): T = {
     val res = task
-    debug("trace: $name = $res")
+    debug(s"$name: $res")
     res
   }
 
   def debug(str: String)(implicit logLevel: LogLevel) =
     if (logLevel.debug)
-      log("debug", Back.Yellow ++ Color.LightGray, str)
+      log("debug", Color.Magenta, str)
 
   def info(str: String)(implicit logLevel: LogLevel) =
     if (logLevel.info)
