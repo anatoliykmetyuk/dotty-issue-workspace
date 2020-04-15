@@ -17,7 +17,7 @@ object IssueWorkspace extends AutoPlugin {
   override def trigger = allRequirements
 
   def issue = SBTCommandAPI.args("issue", "<dirName>, <args>") { case (initialState, issueName :: args) =>
-    val props = loadProperties(s"${sys.props("user.home")}/.sbt/1.0/plugins/dotty-workspace-path")
+    val props = loadProperties(s"${sys.props("user.home")}/.sbt/1.0/plugins/dotty-issues-workspace")
     implicit val ctx = Context(args, issueName, props)
 
     val src = Source.fromFile(ctx.launchFile).mkString
