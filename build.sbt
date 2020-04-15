@@ -5,4 +5,6 @@ lazy val root = (project in file(".")).
     organization := "com.akmetiuk",
     scalaVersion := "2.12.8",
     sbtPlugin := true,
+
+    libraryDependencies += "com.lihaoyi" %% "fansi" % "0.2.7",
   )

@@ -1,13 +1,31 @@
 package dotty.workspace.util
 
+import fansi._
+
 trait Logging {
-  val doDebug = true
+  private def log(rawTag: String, attrs: Attrs, str: String) = {
+    val tag = attrs(rawTag).render
+    println(s"[$tag] $str")
+  }
 
-  def trace[T](name: String)(task: => T): T = if (doDebug) {
+  def trace[T](name: String)(task: => T)(implicit logLevel: LogLevel): T = {
     val res = task
-    println(s"TRACE $name = $res")
+    debug("trace: $name = $res")
     res
-  } else task
+  }
 
-  def debug(str: String) = if (doDebug) println(str)
+  def debug(str: String)(implicit logLevel: LogLevel) =
+    if (logLevel.debug)
+      log("debug", Back.Yellow ++ Color.LightGray, str)
+
+  def info(str: String)(implicit logLevel: LogLevel) =
+    if (logLevel.info)
+      log("info", Color.Cyan, str)
+
+  def error(str: String)(implicit logLevel: LogLevel) =
+    if (logLevel.error)
+      log("error", Color.Red, str)
+
+  def fail(str: String) =
+    throw new RuntimeException(str)
 }

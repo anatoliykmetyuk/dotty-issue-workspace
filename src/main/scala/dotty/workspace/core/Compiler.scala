@@ -5,7 +5,6 @@ import java.io.File
 
 import dotty.workspace.phases._
 
-case class Context(args: List[String], issueDir: File)
 
 object Compiler {
   val phases = List(

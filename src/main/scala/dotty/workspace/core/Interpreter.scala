@@ -6,8 +6,8 @@ import scala.sys.process._
 import sbt.{ Command => SBTCommandAPI, _ }
 
 object Interpreter {
-  def run(cmds: List[Command], initialState: State, workdir: File): State = {
-    var currentWorkdir = workdir
+  def run(cmds: List[Command], initialState: State)(implicit ctx: Context): State = {
+    var currentWorkdir = ctx.issueDir
     debug(s"Launch script:\n${cmds.mkString("\n")}")
 
     val failureMarker = Exec("FAILURE MARKER", None)
