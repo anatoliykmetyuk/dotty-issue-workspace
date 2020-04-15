@@ -36,8 +36,9 @@ object MakeStatements extends Phase {
       val pat = """\s+(.+)""".r
       line match {
         case pat(str) =>
-          val useWhitespaceSeparator =
-            !currentStat.isInstanceOf[ChangeWorkdirCommand]
+          val useWhitespaceSeparator = !(
+              currentStat.isInstanceOf[ChangeWorkdirCommand]
+          ||  currentStat.isInstanceOf[ValDef])
           val sep = if (useWhitespaceSeparator) " " else ""
 
           currentStat =  trace("appendToCurrentStatement") {

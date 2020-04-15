@@ -24,7 +24,7 @@ object CompilerSuite extends TestSuite {
   }
 
   val tests = Tests {
-    test("Syntax"){
+    test("Syntax") {
       test("SBT command") - check(
         """
           |foo
@@ -114,6 +114,33 @@ object CompilerSuite extends TestSuite {
           """
         )
       }
+    }
+
+    test("Cases") {
+      test - check(
+        """
+          |dotty-bootstrapped/publishLocal
+
+          |val utest_dir = /repos/utest/
+          |val utest_classpath =
+          |  $utest_dir/out/utest/jvm/0.24.0-bin-SNAPSHOT/compile/dest/classes
+
+          |cd $utest_dir
+          |$ ./mill
+          |  -D dottyVersion="0.24.0-bin-SNAPSHOT"
+          |  utest.jvm[0.24.0-bin-SNAPSHOT].compile
+
+          |dotty-bootstrapped/dotc -d $here
+          |  -classpath $utest_classpath
+          |  $here/test.scala
+        """,
+        """
+          |> dotty-bootstrapped/publishLocal
+          |cd /repos/utest/
+          |$ ./mill -D dottyVersion="0.24.0-bin-SNAPSHOT" utest.jvm[0.24.0-bin-SNAPSHOT].compile
+          |> dotty-bootstrapped/dotc -d dummy/workspace/issue -classpath /repos/utest//out/utest/jvm/0.24.0-bin-SNAPSHOT/compile/dest/classes dummy/workspace/issue/test.scala
+        """
+      )
     }
   }
 }
