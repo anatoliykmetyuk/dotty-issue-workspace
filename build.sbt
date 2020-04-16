@@ -33,7 +33,7 @@ lazy val publishingSettings = List(
     sys.env("SONATYPE_PW")
   ),
 
-  Global / PgpKeys.gpgCommand := (baseDirectory.value / "project/scripts/gpg.sh").getAbsolutePath
+  Global / PgpKeys.gpgCommand := (baseDirectory.value / "project/scripts/gpg.sh").getAbsolutePath,
 )
 
 lazy val root = (project in file("."))

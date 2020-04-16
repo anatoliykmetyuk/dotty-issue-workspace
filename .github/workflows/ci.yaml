@@ -35,3 +35,44 @@ jobs:
 
       - name: Test
         run: sbt test
+
+  release:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' &&
+        startsWith(github.event.ref, 'refs/tags/')
+
+    needs: [test]
+    env:
+      PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+      PGP_SECRET: ${{ secrets.PGP_SECRET }}
+      SONATYPE_PW: ${{ secrets.SONATYPE_PW }}
+      SONATYPE_USER: ${{ secrets.SONATYPE_USER }}
+
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v2
+
+      - name: Cache Ivy
+        uses: actions/cache@v1.1.2
+        with:
+          path: /root/.ivy2/cache
+          key: ${{ runner.os }}-ivy-${{ hashFiles('**/build.sbt') }}
+          restore-keys: ${{ runner.os }}-ivy-
+
+      - name: Cache SBT
+        uses: actions/cache@v1.1.2
+        with:
+          path: /root/.sbt
+          key: ${{ runner.os }}-sbt-${{ hashFiles('project/**') }}
+          restore-keys: ${{ runner.os }}-sbt-
+
+      - name: Cache Coursier
+        uses: actions/cache@v1.1.2
+        with:
+          path: /root/.cache
+          key: ${{ runner.os }}-general-${{ hashFiles('**/build.sbt') }}
+          restore-keys: ${{ runner.os }}-general-
+
+      - name: Publish Release
+        run: |
+          ./project/scripts/sbtPublish.sh ";project root ;publishSigned ;sonatypeBundleRelease"

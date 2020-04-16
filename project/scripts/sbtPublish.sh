@@ -10,10 +10,8 @@ RELEASE_CMD="${1:?Missing publish command}"
 : "${PGP_PASSPHRASE:?not set}"
 : "${PGP_SECRET:?is not set}"
 
-# Setup bouncycastle instead of gpg to do signing, because gpg explodes when
-# doing too many signing requests in parallel (https://github.com/sbt/sbt-pgp/issues/168)
-mkdir -p "$HOME/.sbt/gpg"
-echo "$PGP_SECRET" > "$HOME/.sbt/gpg/secring.asc"
+export GPG_TTY="$(tty)"
+echo "$PGP_SECRET" | gpg --batch --import
 
 # run sbt with the supplied arg
 sbt "$RELEASE_CMD"
