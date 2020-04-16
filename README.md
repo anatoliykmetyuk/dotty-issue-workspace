@@ -32,9 +32,9 @@ Every issue has a dedicated folder with all the Scala files and the launch scrip
 
 ```
 dummy
-  ├── lib.scala
-  ├── Test.scala
-  └── launch.iss
+├── lib.scala
+├── Test.scala
+└── launch.iss
 ```
 
 All of the issue folders reside in one parent folder, the Issue Workspace folder. The plugin obtains the location of the workspace folder from a config file.
@@ -45,13 +45,13 @@ From SBT console opened in the Dotty repo, you can then run `issue dummy` and th
 1. `echo -n 'addSbtPlugin("com.akmetiuk" % "dotty-workspace" % "0.1.0")' > ~/.sbt/1.0/plugins/dotty-issues-workspace.sbt` – add the plugin globally to SBT. If the directory structure does not exist, create it.
 2. `echo -n 'workspace_path = /path/to/your/issue/workspace' > ~/.sbt/1.0/plugins/dotty-issues-workspace` – create the config file with the path to the workspace directory.
 3. Navigate to the Dotty repo and run `sbt` command to open the SBT console.
-4. From the SBT console, run `issue issue_folder_name`. This command will read the commands from `/path/to/your/issue/workspace/launch.iss` and executes them.
+4. From the SBT console, run `issue issue_folder_name`. This command will read the commands from `/path/to/your/issue/workspace/issue_folder_name/launch.iss` and executes them.
 
 ## Launch Script Syntax
 The launch script syntax is as follows:
 
-- Every command is on a new line.
-- If a line is indented, it gets appended to the previous line without indentation.
+- Every command is on a new line, without indentation.
+- If a line is indented, it gets appended to the previous line.
 - `$ <cmd>` – executes a command using `bash`
 - `cd <dir>` – sets the working directory where `$` executes commands
 - `val <name> = <value>` – defines a variable. You can use variables in commands via `$name`.
@@ -60,7 +60,56 @@ The launch script syntax is as follows:
 
 For example, see [tests](https://github.com/anatoliykmetyuk/dotty-issue-workspace/tree/master/src/test/scala/dotty/workspace/core).
 
-### Example
+## Advanced features
+### Script variables
+Normally you launch an issue using `issue issue_name` command. You can supply extra arguments to this command: `issue issue_name arg_1 arg_2`. These arguments are available inside the script as variables via `$<arg_id>`, e.g. `$1`, `$2` etc.
+
+For example, consider the following script:
+
+```bash
+dotc $here/iss_$1.scala
+```
+
+If you launch it as `issue issue_name compiler_crash`, the script will translate into a single SBT command: `dotc $here/iss_compiler_crash.scala`.
+
+### Shared launch scripts
+Normally, each issue contains its own launch script `launch.iss`. If, however, such a script is missing, the plugin will attempt to load such a script from parent directories. E.g. you can have the following setup:
+
+```
+workspace
+├── issue-1
+│   ├── Test.scala
+│   ├── launch.iss
+│   └── lib.scala
+├── issue-2
+│   └── Test.scala
+└── launch.iss
+```
+
+If you call `issue issue-1`, the `workspace/issue-1/launch.iss` script will be executed. If you call `issue issue-2`, the `workspace/launch.iss` script will be executed since `issue-2` doesn't have its own script.
+
+The `$here` variable always points to the issue folder, even if the launch script resides in one of the parent directories. This means that `$here` for `issue-1` will be `workspace/issue-2` and for `issue-2` – `workspace/issue-2`.
+
+### Nested issues
+The ability to share launch scripts leads to the possibility to have a directory structure where one issue has multiple subissues, as follows:
+
+```
+workspace
+└── nested
+    ├── iss1
+    │   ├── Macro.scala
+    │   └── Test.scala
+    ├── iss2
+    │   ├── Macro.scala
+    │   └── Test.scala
+    └── launch.iss
+```
+
+You can call the above issues as `issue nested/iss1` and `issue nested/iss2` respectively.
+
+This can be useful when you work with several close reproductions of the same root issue.
+
+## Example
 Say I want to:
 
 1. Compile a 3rd party project (utest) with Dotty
