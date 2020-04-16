@@ -7,6 +7,18 @@
 
 Dotty Issue Workspace is a small SBT-based build tool for issue reproduction in Dotty. It is implemented as an SBT plugin. It allows you to write a script that describes what needs to be done to reproduce an issue. This script currently supports SBT commands, shell commands and variables.
 
+- [Example](#example)
+- [Usage](#usage)
+- [Getting started](#getting-started)
+- [Launch Script Syntax](#launch-script-syntax)
+- [Advanced features](#advanced-features)
+  * [Script variables](#script-variables)
+  * [Shared launch scripts](#shared-launch-scripts)
+  * [Nested issues](#nested-issues)
+
+<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
+
+## Example
 Say you have an issue that reproduces by compiling two files, `lib.scala` and `Test.scala`, with Dotty. The second file needs the first file on the classpath. You can write the following script that will be understood by the Dotty Issue Runner:
 
 ```bash
@@ -26,6 +38,8 @@ dotty-bootstrapped/dotr -classpath $here Test
 You can save it in a file `launch.iss` and execute it from SBT console of the Dotty repo.
 
 The script above contains two SBT commands. Indented lines are joined with the lines without indentation using spaces, e.g. the first command becomes `dotty-bootstrapped/dotc -d $here $here/A.scala`. `$here` is a magic variable that points to the directory where the script resides.
+
+For more examples, see For example, see [tests](https://github.com/anatoliykmetyuk/dotty-issue-workspace/tree/master/src/test/scala/dotty/workspace/core).
 
 ## Usage
 Every issue has a dedicated folder with all the Scala files and the launch script residing there:
@@ -57,8 +71,6 @@ The launch script syntax is as follows:
 - `val <name> = <value>` – defines a variable. You can use variables in commands via `$name`.
 - `# Comment` – a comment
 - Everything else is interpreted as an SBT command.
-
-For example, see [tests](https://github.com/anatoliykmetyuk/dotty-issue-workspace/tree/master/src/test/scala/dotty/workspace/core).
 
 ## Advanced features
 ### Script variables
@@ -108,32 +120,3 @@ workspace
 You can call the above issues as `issue nested/iss1` and `issue nested/iss2` respectively.
 
 This can be useful when you work with several close reproductions of the same root issue.
-
-## Example
-Say I want to:
-
-1. Compile a 3rd party project (utest) with Dotty
-2. Compile a Scala file `test.scala` with utest on the classpath.
-
-I can make the following script:
-
-```bash
-# Publish Dotty to the local ivy repo
-dotty-bootstrapped/publishLocal
-
-# Define variables pointing where utest is
-val utest_dir = /Users/kmetiuk/Projects/scala3/tools/ecosystem/repos/utest/
-val utest_classpath =
-  $utest_dir/out/utest/jvm/0.24.0-bin-SNAPSHOT/compile/dest/classes
-
-# Compile utest using mill
-cd $utest_dir
-$ ./mill
-  -D dottyVersion="0.24.0-bin-SNAPSHOT"
-  utest.jvm[0.24.0-bin-SNAPSHOT].compile
-
-# Compile the example file
-dotty-bootstrapped/dotc -d $here
-  -classpath $utest_classpath
-  $here/test.scala
-```
