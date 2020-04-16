@@ -26,12 +26,12 @@ lazy val publishingSettings = List(
   publishMavenStyle := true,
   publishTo := sonatypePublishToBundle.value,
 
-  credentials += Credentials(
-    "Sonatype Nexus Repository Manager",
-    "oss.sonatype.org",
-    sys.env("SONATYPE_USER"),
-    sys.env("SONATYPE_PW")
-  ),
+  credentials ++= (
+    for {
+      username <- sys.env.get("SONATYPE_USER")
+      password <- sys.env.get("SONATYPE_PW")
+    } yield Credentials("Sonatype Nexus Repository Manager", "oss.sonatype.org", username, password)
+  ).toList,
 
   Global / PgpKeys.gpgCommand := (baseDirectory.value / "project/scripts/gpg.sh").getAbsolutePath,
 )
