@@ -9,7 +9,7 @@ Dotty Issue Workspace is a small SBT-based build tool for issue reproduction in 
 
 Say you have an issue that reproduces by compiling two files, `lib.scala` and `Test.scala`, with Dotty. The second file needs the first file on the classpath. You can write the following script that will be understood by the Dotty Issue Runner:
 
-```scala
+```bash
 # Compile the two files using SBT commands
 dotty-bootstrapped/dotc -d $here $here/lib.scala
 dotty-bootstrapped/dotc -d $here
