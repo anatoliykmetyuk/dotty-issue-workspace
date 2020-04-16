@@ -1,58 +1,51 @@
-# Dotty Issue Runner
+# Dotty Issue Workspace
 ![CI](https://github.com/anatoliykmetyuk/dotty-issue-workspace/workflows/CI/badge.svg)
 
 <p align="center">
   <img src="demo.gif">
 </p>
 
-This is an SBT plugin to aid in reproducing Dotty issues locally. It allows you to write a script that describes what needs to be done to reproduce an issue. This script currently supports SBT commands, shell commands and variables.
+Dotty Issue Workspace is a small SBT-based build tool for issue reproduction in Dotty. It is implemented as an SBT plugin. It allows you to write a script that describes what needs to be done to reproduce an issue. This script currently supports SBT commands, shell commands and variables.
 
-Say you have an issue that reproduces by compiling two files with Dotty. The second file needs the compiled first file on the classpath. You can write the following script that will be understood by the Dotty Issue Runner:
+Say you have an issue that reproduces by compiling two files, `lib.scala` and `Test.scala`, with Dotty. The second file needs the first file on the classpath. You can write the following script that will be understood by the Dotty Issue Runner:
 
 ```scala
+# Compile the two files using SBT commands
+dotty-bootstrapped/dotc -d $here $here/lib.scala
 dotty-bootstrapped/dotc -d $here
-  $here/A.scala
-
-dotty-bootstrapped/dotc -d $here
-  -Xprint:staging,reifyQuotes
-  -Xprint-inline
-  -Ycheck:all
-  -Yprint-pos
   -classpath $here
-  $here/B.scala
+  -Xprint:typer # Print typer for the second file
+  $here/Test.scala
+
+# We can also use shell commands
+$ echo "Running the project now"
+
+dotty-bootstrapped/dotr -classpath $here Test
 ```
 
-You can save it in a file `launch.iss` and execute it from SBT console.
+You can save it in a file `launch.iss` and execute it from SBT console of the Dotty repo.
 
 The script above contains two SBT commands. Indented lines are joined with the lines without indentation using spaces, e.g. the first command becomes `dotty-bootstrapped/dotc -d $here $here/A.scala`. `$here` is a magic variable that points to the directory where the script resides.
 
 ## Usage
-The plugin assumes you store your issues under the following directory structure:
+Every issue has a dedicated folder with all the Scala files and the launch script residing there:
 
 ```
-workspace
-├── i1
-│   ├── File_1.scala
-│   ├── File_2.scala
-│   └── launch.iss
-├── issue-30
-│   ├── A.scala
-│   └── launch.iss
-└── stuff
-    ├── A.scala
-    ├── B.scala
-    ├── C.scala
-    └── launch.iss
+dummy
+  ├── lib.scala
+  ├── Test.scala
+  └── launch.iss
 ```
 
-Each issue has a dedicated folder – `i1`, `issue-30`, `stuff` etc. All the issue files reside there. Each issue folder also contains the `launch.iss` script which describes how to reproduce the issue. All of the issue folders reside in one parent folder, the issue workspace folder.
+All of the issue folders reside in one parent folder, the Issue Workspace folder. The plugin obtains the location of the workspace folder from a config file.
 
-### Getting started
-1. Clone this repo
-2. Run `./install.sh`, this will copy the plugin sources to the SBT global plugins directory
-3. Navigate to the Dotty repo and run `sbt` command
-4. From SBT console, run `issuesWorkspace /path/to/issue/workspace`. This lets Dotty know where your issues are located
-5. Run `issue issue_folder_name`. This reads the commands from `/path/to/issue/workspace/issue_folder_name/launch.iss` and executes them.
+From SBT console opened in the Dotty repo, you can then run `issue dummy` and the plugin will execute the `launch.iss` file found in that folder.
+
+## Getting started
+1. `echo -n 'addSbtPlugin("com.akmetiuk" % "dotty-workspace" % "0.1.0")' > ~/.sbt/1.0/plugins/dotty-issues-workspace.sbt` – add the plugin globally to SBT. If the directory structure does not exist, create it.
+2. `echo -n 'workspace_path = /path/to/your/issue/workspace' > ~/.sbt/1.0/plugins/dotty-issues-workspace` – create the config file with the path to the workspace directory.
+3. Navigate to the Dotty repo and run `sbt` command to open the SBT console.
+4. From the SBT console, run `issue issue_folder_name`. This command will read the commands from `/path/to/your/issue/workspace/launch.iss` and executes them.
 
 ## Launch Script Syntax
 The launch script syntax is as follows:
@@ -64,6 +57,8 @@ The launch script syntax is as follows:
 - `val <name> = <value>` – defines a variable. You can use variables in commands via `$name`.
 - `# Comment` – a comment
 - Everything else is interpreted as an SBT command.
+
+For example, see [tests](https://github.com/anatoliykmetyuk/dotty-issue-workspace/tree/master/src/test/scala/dotty/workspace/core).
 
 ### Example
 Say I want to:
