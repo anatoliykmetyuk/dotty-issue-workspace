@@ -7,7 +7,7 @@
 
 Dotty Issue Workspace is a small SBT-based build tool for issue reproduction in Dotty. It is implemented as an SBT plugin. It allows you to write a script that describes what needs to be done to reproduce an issue. This script currently supports SBT commands, shell commands and variables.
 
-- [Example](#example)
+- [How it works](#how-it-works)
 - [Usage](#usage)
 - [Getting started](#getting-started)
 - [Launch Script Syntax](#launch-script-syntax)
@@ -18,7 +18,7 @@ Dotty Issue Workspace is a small SBT-based build tool for issue reproduction in 
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
-## Example
+## How it works
 Say you have an issue that reproduces by compiling two files, `lib.scala` and `Test.scala`, with Dotty. The second file needs the first file on the classpath. You can write the following script that will be understood by the Dotty Issue Runner:
 
 ```bash
@@ -35,11 +35,11 @@ $ echo "Running the project now"
 dotty-bootstrapped/dotr -classpath $here Test
 ```
 
-You can save it in a file `launch.iss` and execute it from SBT console of the Dotty repo.
+The script is executed from the SBT console opened in the Dotty repository, so all the SBT commands are resolved against the Dotty SBT project.
 
 The script above contains two SBT commands. Indented lines are joined with the lines without indentation using spaces, e.g. the first command becomes `dotty-bootstrapped/dotc -d $here $here/A.scala`. `$here` is a magic variable that points to the directory where the script resides.
 
-For more examples, see For example, see [tests](https://github.com/anatoliykmetyuk/dotty-issue-workspace/tree/master/src/test/scala/dotty/workspace/core).
+For more examples, see [tests](https://github.com/anatoliykmetyuk/dotty-issue-workspace/tree/master/src/test/scala/dotty/workspace/core).
 
 ## Usage
 Every issue has a dedicated folder with all the Scala files and the launch script residing there:
