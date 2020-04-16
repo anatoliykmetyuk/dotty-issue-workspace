@@ -68,7 +68,7 @@ Say I want to:
 
 I can make the following script:
 
-```
+```bash
 # Publish Dotty to the local ivy repo
 dotty-bootstrapped/publishLocal
 
