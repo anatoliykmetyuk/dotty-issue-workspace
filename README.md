@@ -1,6 +1,10 @@
 # Dotty Issue Runner
 ![CI](https://github.com/anatoliykmetyuk/dotty-issue-workspace/workflows/CI/badge.svg)
 
+<p align="center">
+  <img src="demo.gif">
+</p>
+
 This is an SBT plugin to aid in reproducing Dotty issues locally. It allows you to write a script that describes what needs to be done to reproduce an issue. This script currently supports SBT commands, shell commands and variables.
 
 Say you have an issue that reproduces by compiling two files with Dotty. The second file needs the compiled first file on the classpath. You can write the following script that will be understood by the Dotty Issue Runner:
