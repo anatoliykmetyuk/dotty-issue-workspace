@@ -23,8 +23,8 @@ Say you have an issue that reproduces by compiling two files, `lib.scala` and `T
 
 ```bash
 # Compile the two files using SBT commands
-dotty-bootstrapped/dotc -d $here $here/lib.scala
-dotty-bootstrapped/dotc -d $here
+scala3-bootstrapped/dotc -d $here $here/lib.scala
+scala3-bootstrapped/dotc -d $here
   -classpath $here
   -Xprint:typer # Print typer for the second file
   $here/Test.scala
@@ -32,12 +32,12 @@ dotty-bootstrapped/dotc -d $here
 # We can also use shell commands
 $ echo "Running the project now"
 
-dotty-bootstrapped/dotr -classpath $here Test
+scala3-bootstrapped/dotr -classpath $here Test
 ```
 
 The script is executed from the SBT console opened in the Dotty repository, so all the SBT commands are resolved against the Dotty SBT project.
 
-The script above contains two SBT commands. Indented lines are joined with the lines without indentation using spaces, e.g. the first command becomes `dotty-bootstrapped/dotc -d $here $here/A.scala`. `$here` is a magic variable that points to the directory where the script resides.
+The script above contains two SBT commands. Indented lines are joined with the lines without indentation using spaces, e.g. the first command becomes `scala3-bootstrapped/dotc -d $here $here/A.scala`. `$here` is a magic variable that points to the directory where the script resides.
 
 For more examples, see [tests](https://github.com/anatoliykmetyuk/dotty-issue-workspace/tree/master/src/test/scala/dotty/workspace/core).
 
