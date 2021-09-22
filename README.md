@@ -5,7 +5,7 @@
   <img src="demo.gif">
 </p>
 
-Please note that the above gif was recorded a long while ago, and the compiler commands like `dotty-bootstrapped/dotc` have since changed, e.g. to `scala3-bootstrapped/scalac`. The gif is for concept demonstration only.
+*Please note that the above gif was recorded a long while ago, and the compiler commands like `dotty-bootstrapped/dotc` have since changed, e.g. to `scala3-bootstrapped/scalac`. The gif is for concept demonstration only.*
 
 Dotty Issue Workspace is a small SBT-based build tool for issue reproduction in Dotty. It is implemented as an SBT plugin. It allows you to write a script that describes what needs to be done to reproduce an issue. This script currently supports SBT commands, shell commands and variables.
 
