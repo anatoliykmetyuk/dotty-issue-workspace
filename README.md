@@ -5,6 +5,8 @@
   <img src="demo.gif">
 </p>
 
+Please note that the above gif was recorded a long while ago, and the compiler commands like `dotty-bootstrapped/dotc` have since changed, e.g. to `scala3-bootstrapped/scalac`. The gif is for concept demonstration only.
+
 Dotty Issue Workspace is a small SBT-based build tool for issue reproduction in Dotty. It is implemented as an SBT plugin. It allows you to write a script that describes what needs to be done to reproduce an issue. This script currently supports SBT commands, shell commands and variables.
 
 - [How it works](#how-it-works)
@@ -23,8 +25,8 @@ Say you have an issue that reproduces by compiling two files, `lib.scala` and `T
 
 ```bash
 # Compile the two files using SBT commands
-scala3-bootstrapped/dotc -d $here $here/lib.scala
-scala3-bootstrapped/dotc -d $here
+scala3-bootstrapped/scalac -d $here $here/lib.scala
+scala3-bootstrapped/scalac -d $here
   -classpath $here
   -Xprint:typer # Print typer for the second file
   $here/Test.scala
@@ -37,7 +39,7 @@ scala3-bootstrapped/dotr -classpath $here Test
 
 The script is executed from the SBT console opened in the Dotty repository, so all the SBT commands are resolved against the Dotty SBT project.
 
-The script above contains two SBT commands. Indented lines are joined with the lines without indentation using spaces, e.g. the first command becomes `scala3-bootstrapped/dotc -d $here $here/A.scala`. `$here` is a magic variable that points to the directory where the script resides.
+The script above contains two SBT commands. Indented lines are joined with the lines without indentation using spaces, e.g. the first command becomes `scala3-bootstrapped/scalac -d $here $here/A.scala`. `$here` is a magic variable that points to the directory where the script resides.
 
 For more examples, see [tests](https://github.com/anatoliykmetyuk/dotty-issue-workspace/tree/master/src/test/scala/dotty/workspace/core).
 
@@ -79,10 +81,10 @@ Normally you launch an issue using `issue issue_name` command. You can supply ex
 For example, consider the following script:
 
 ```bash
-dotc $here/iss_$1.scala
+scalac $here/iss_$1.scala
 ```
 
-If you launch it as `issue issue_name compiler_crash`, the script will translate into a single SBT command: `dotc $here/iss_compiler_crash.scala`.
+If you launch it as `issue issue_name compiler_crash`, the script will translate into a single SBT command: `scalac $here/iss_compiler_crash.scala`.
 
 ### Shared launch scripts
 Normally, each issue contains its own launch script `launch.iss`. If, however, such a script is missing, the plugin will attempt to load such a script from parent directories. E.g. you can have the following setup:
